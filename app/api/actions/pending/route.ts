@@ -25,7 +25,9 @@ export async function GET() {
       ORDER BY a.created_at DESC
     `;
 
-    return NextResponse.json(result.rows);
+    return NextResponse.json(result.rows, {
+      headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
+    });
   } catch (error) {
     console.error('GET /api/actions/pending error:', error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
