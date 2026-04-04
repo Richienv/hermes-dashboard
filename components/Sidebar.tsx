@@ -120,6 +120,18 @@ export default function Sidebar({ activeTopic, onTopicChange }: SidebarProps) {
             </Link>
 
             <Link
+              href="/archive"
+              onClick={() => setSidebarOpen(false)}
+              className={`w-full text-left px-3 py-2.5 rounded-lg font-mono text-sm transition-colors flex items-center gap-2
+                ${pathname === '/archive'
+                  ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                  : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50'
+                }`}
+            >
+              📁 Archive
+            </Link>
+
+            <Link
               href="/links"
               onClick={() => setSidebarOpen(false)}
               className="w-full text-left px-3 py-2.5 rounded-lg font-mono text-sm text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50 transition-colors flex items-center gap-2 block"

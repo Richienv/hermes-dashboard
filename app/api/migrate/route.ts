@@ -14,6 +14,16 @@ export async function GET() {
     await sql`ALTER TABLE actions ADD COLUMN IF NOT EXISTS reason TEXT`;
     await sql`ALTER TABLE actions ADD COLUMN IF NOT EXISTS decided_at TIMESTAMP`;
     await sql`ALTER TABLE actions ADD COLUMN IF NOT EXISTS notified_at TIMESTAMP`;
+    await sql`
+      CREATE TABLE IF NOT EXISTS digest_history (
+        id TEXT PRIMARY KEY,
+        digest_id TEXT UNIQUE NOT NULL,
+        raw_text TEXT NOT NULL,
+        bullet_count INTEGER DEFAULT 0,
+        parsed_at TIMESTAMP DEFAULT NOW(),
+        source TEXT DEFAULT 'SYSTEM'
+      )
+    `;
     return NextResponse.json({ ok: true, message: 'Migration complete' });
   } catch (error) {
     return NextResponse.json({ ok: false, error: String(error) }, { status: 500 });

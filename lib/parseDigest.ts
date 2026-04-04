@@ -107,6 +107,25 @@ export function parseDigest(digestText: string): DigestItem[] {
   return items;
 }
 
+// POST digest history record
+export async function postDigestHistory(
+  digestText: string,
+  digestId: string,
+  bulletCount: number,
+  baseUrl: string,
+  apiKey: string
+): Promise<void> {
+  try {
+    await fetch(`${baseUrl}/api/digest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Hermes-Key': apiKey },
+      body: JSON.stringify({ digestId, rawText: digestText, bulletCount, source: 'SYSTEM' }),
+    });
+  } catch (err) {
+    console.error('Failed to post digest history:', err);
+  }
+}
+
 // POST all parsed items to the dashboard API
 export async function postDigestToDashboard(
   items: DigestItem[],
