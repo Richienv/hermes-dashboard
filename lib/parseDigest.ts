@@ -46,11 +46,13 @@ function inferTopic(text: string): string {
 }
 
 function inferSource(text: string): string {
-  if (text.includes('[ARIA]') || text.includes('ARIA')) return 'ARIA';
-  if (text.includes('[ICARUS]') || text.includes('ICARUS')) return 'ICARUS';
-  if (text.includes('[DAEDALUS]')) return 'DAEDALUS';
-  if (text.includes('[GHOST]')) return 'GHOST';
-  if (text.includes('[SCHOLAR]')) return 'SCHOLAR';
+  const upper = text.toUpperCase();
+  // Only assign if agent name is EXPLICITLY present as a word
+  if (/\bARIA\b/.test(upper)) return 'ARIA';
+  if (/\bICARUS\b/.test(upper)) return 'ICARUS';
+  if (/\bDAEDALUS\b/.test(upper)) return 'DAEDALUS';
+  if (/\bGHOST\b/.test(upper)) return 'GHOST';
+  if (/\bSCHOLAR\b/.test(upper)) return 'SCHOLAR';
   return 'SYSTEM';
 }
 
@@ -89,12 +91,29 @@ export function parseDigest(digestText: string): DigestItem[] {
       const source = inferSource(bulletText);
       const actionRequired = /AKSI|action needed|harus|wajib|segera/i.test(bulletText);
 
+      // Override: deadline/schedule items must not land in TEMUAN
+      let effectiveSection = currentSection;
+      let effectiveUrgency = currentUrgency;
+      const deadlinePattern = /\bdue\b|\bdeadline\b|\bD-\d+\b|\bjatuh tempo\b|\btengat\b/i;
+      if (effectiveSection === 'TEMUAN' && deadlinePattern.test(bulletText)) {
+        effectiveSection = 'MINGGU_INI';
+        effectiveUrgency = 'MEDIUM';
+      }
+
+      // Override: AKSI_HARI_INI with future date but no urgency markers → MINGGU_INI
+      const futureDatePattern = /\b\d{1,2}\s+(Mei|April|Maret|Juni|Juli|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b|\bMay \d+|\bApril \d+/i;
+      const urgencyMarkers = /\bsekarang\b|\bhari ini\b|\bsegera\b|\bimmediately\b|\btoday\b/i;
+      if (effectiveSection === 'AKSI_HARI_INI' && futureDatePattern.test(bulletText) && !urgencyMarkers.test(bulletText)) {
+        effectiveSection = 'MINGGU_INI';
+        effectiveUrgency = 'MEDIUM';
+      }
+
       items.push({
         topic,
         title: title || bulletText.slice(0, 100),
         body,
-        section: currentSection,
-        urgency: currentUrgency,
+        section: effectiveSection,
+        urgency: effectiveUrgency,
         source,
         actionRequired,
         action: actionRequired ? `Review: ${title}` : null,
