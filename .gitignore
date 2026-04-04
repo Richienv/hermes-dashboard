@@ -40,3 +40,6 @@ next-env.d.ts
 # sqlite (not used but exclude if present)
 *.db
 hermes.db
+.env.check
+.env.fresh
+.env.prod
