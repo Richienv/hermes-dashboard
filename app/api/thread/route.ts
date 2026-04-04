@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
       action = null,
       digestId,
       topicTag,
+      agent, // New optional field
     } = await req.json();
 
     if (!topic || !title) {
@@ -28,13 +29,14 @@ export async function POST(req: NextRequest) {
 
     const id = crypto.randomUUID();
     const effectiveTopicTag = topicTag || topic;
+    const effectiveAgent = agent || source || 'SYSTEM';
 
     await sql`
-      INSERT INTO threads (id, topic, title, body, section, urgency, source, action_required, digest_id, topic_tag)
+      INSERT INTO threads (id, topic, title, body, section, urgency, source, action_required, digest_id, topic_tag, agent)
       VALUES (
         ${id}, ${topic}, ${title}, ${body ?? null},
         ${section}, ${urgency}, ${source},
-        ${actionRequired}, ${digestId ?? null}, ${effectiveTopicTag}
+        ${actionRequired}, ${digestId ?? null}, ${effectiveTopicTag}, ${effectiveAgent}
       )
     `;
 
@@ -47,7 +49,9 @@ export async function POST(req: NextRequest) {
       `;
     }
 
-    return NextResponse.json({ id });
+    return NextResponse.json({ id }, {
+      headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
+    });
   } catch (error) {
     console.error('POST /api/thread error:', error);
     return NextResponse.json({ error: String(error) }, { status: 500 });

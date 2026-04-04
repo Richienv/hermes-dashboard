@@ -12,18 +12,22 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { thread_id, content, source_link } = await req.json();
+    const { thread_id, content, source_link, agent } = await req.json();
     if (!thread_id || !content) {
       return NextResponse.json({ error: 'thread_id and content required' }, { status: 400 });
     }
 
     const id = crypto.randomUUID();
+    const effectiveAgent = agent || 'SYSTEM';
+
     await sql`
-      INSERT INTO updates (id, thread_id, content, source_link)
-      VALUES (${id}, ${thread_id}, ${content}, ${source_link || null})
+      INSERT INTO updates (id, thread_id, content, source_link, agent)
+      VALUES (${id}, ${thread_id}, ${content}, ${source_link || null}, ${effectiveAgent})
     `;
 
-    return NextResponse.json({ id });
+    return NextResponse.json({ id }, {
+      headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
+    });
   } catch (error) {
     console.error('POST /api/update error:', error);
     return NextResponse.json({ error: String(error) }, { status: 500 });

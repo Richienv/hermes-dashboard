@@ -61,6 +61,8 @@ export default function ArchivePage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [details, setDetails] = useState<Record<string, DigestDetail>>({});
   const [detailLoading, setDetailLoading] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'agent' | 'topic'>('agent');
+  const [activeItem, setActiveItem] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/digest')
@@ -102,7 +104,12 @@ export default function ArchivePage() {
 
   return (
     <div className="flex h-screen bg-zinc-900 text-zinc-100 font-mono overflow-hidden">
-      <Sidebar activeTopic={null} />
+      <Sidebar
+        activeItem={activeItem}
+        viewMode={viewMode}
+        onItemChange={setActiveItem}
+        onViewModeChange={setViewMode}
+      />
 
       <main className="flex-1 lg:ml-60 overflow-y-auto p-6">
         <div className="max-w-3xl mx-auto">

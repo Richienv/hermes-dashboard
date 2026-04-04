@@ -26,7 +26,9 @@ export async function PATCH(
       WHERE id = ${params.id}
     `;
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true }, {
+      headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
+    });
   } catch (error) {
     console.error('PATCH /api/action/[id] error:', error);
     return NextResponse.json({ error: String(error) }, { status: 500 });

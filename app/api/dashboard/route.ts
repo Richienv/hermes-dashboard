@@ -12,27 +12,69 @@ const SECTION_META: Record<string, { label: string; order: number }> = {
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const topic = searchParams.get('topic') || 'General';
+  const topic = searchParams.get('topic');
+  const agent = searchParams.get('agent');
+  const flat = searchParams.get('flat') === 'true';
 
   try {
-    const threadsResult = await sql`
-      SELECT t.id, t.topic, t.title, t.body, t.section, t.urgency, t.source,
-             t.action_required, t.digest_id, t.topic_tag, t.created_at
-      FROM threads t
-      WHERE t.topic = ${topic}
-      ORDER BY t.created_at DESC
-    `;
+    // Build query with optional filters
+    let threadsResult;
+    if (topic && agent) {
+      threadsResult = await sql`
+        SELECT t.id, t.topic, t.title, t.body, t.section, t.urgency, t.source,
+               t.action_required, t.digest_id, t.topic_tag, t.created_at, t.agent
+        FROM threads t
+        WHERE t.topic = ${topic} AND (t.agent = ${agent} OR t.source = ${agent})
+        ORDER BY t.created_at DESC
+      `;
+    } else if (topic) {
+      threadsResult = await sql`
+        SELECT t.id, t.topic, t.title, t.body, t.section, t.urgency, t.source,
+               t.action_required, t.digest_id, t.topic_tag, t.created_at, t.agent
+        FROM threads t
+        WHERE t.topic = ${topic}
+        ORDER BY t.created_at DESC
+      `;
+    } else if (agent) {
+      threadsResult = await sql`
+        SELECT t.id, t.topic, t.title, t.body, t.section, t.urgency, t.source,
+               t.action_required, t.digest_id, t.topic_tag, t.created_at, t.agent
+        FROM threads t
+        WHERE t.agent = ${agent} OR t.source = ${agent}
+        ORDER BY t.created_at DESC
+      `;
+    } else {
+      threadsResult = await sql`
+        SELECT t.id, t.topic, t.title, t.body, t.section, t.urgency, t.source,
+               t.action_required, t.digest_id, t.topic_tag, t.created_at, t.agent
+        FROM threads t
+        ORDER BY t.created_at DESC
+      `;
+    }
 
-    if (threadsResult.rows.length === 0) return NextResponse.json([]);
+    if (threadsResult.rows.length === 0) {
+      return NextResponse.json([], {
+        headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
+      });
+    }
 
-    // Get actions for these threads via JOIN to avoid array param limitation
-    const actionsResult = await sql`
-      SELECT a.id, a.thread_id, a.description, a.status, a.created_at, a.resolved_at
-      FROM actions a
-      INNER JOIN threads t ON a.thread_id = t.id
-      WHERE t.topic = ${topic}
-      ORDER BY a.created_at DESC
-    `;
+    // Get actions for all threads
+    let actionsResult;
+    if (topic) {
+      actionsResult = await sql`
+        SELECT a.id, a.thread_id, a.description, a.status, a.created_at, a.resolved_at
+        FROM actions a
+        INNER JOIN threads t ON a.thread_id = t.id
+        WHERE t.topic = ${topic}
+        ORDER BY a.created_at DESC
+      `;
+    } else {
+      actionsResult = await sql`
+        SELECT a.id, a.thread_id, a.description, a.status, a.created_at, a.resolved_at
+        FROM actions a
+        ORDER BY a.created_at DESC
+      `;
+    }
 
     const actionsByThread: Record<string, typeof actionsResult.rows> = {};
     for (const a of actionsResult.rows) {
@@ -40,7 +82,18 @@ export async function GET(req: NextRequest) {
       actionsByThread[a.thread_id].push(a);
     }
 
-    // Group by section
+    // If flat=true, return flat array (for new feed layout)
+    if (flat) {
+      const result = threadsResult.rows.map(thread => ({
+        ...thread,
+        actions: actionsByThread[thread.id] || [],
+      }));
+      return NextResponse.json(result, {
+        headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
+      });
+    }
+
+    // Otherwise, group by section (for backward compatibility)
     const grouped: Record<string, { items: typeof threadsResult.rows }> = {};
     for (const thread of threadsResult.rows) {
       const sec = thread.section || 'DICATAT';
@@ -48,7 +101,6 @@ export async function GET(req: NextRequest) {
       grouped[sec].items.push({ ...thread, actions: actionsByThread[thread.id] || [] });
     }
 
-    // Sort sections by defined order
     const result = Object.entries(grouped)
       .map(([section, { items }]) => ({
         section,
@@ -60,7 +112,9 @@ export async function GET(req: NextRequest) {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       .map(({ order: _order, ...rest }) => rest);
 
-    return NextResponse.json(result);
+    return NextResponse.json(result, {
+      headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
+    });
   } catch (error) {
     console.error('GET /api/dashboard error:', error);
     return NextResponse.json({ error: String(error) }, { status: 500 });

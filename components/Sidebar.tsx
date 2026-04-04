@@ -9,14 +9,21 @@ type Action = {
   status: 'pending' | 'approved' | 'rejected';
 };
 
-const TOPICS = ['OIC', 'ERP', 'Personal', 'General'];
+const AGENTS = [
+  'ARIA', 'GHOST', 'SCHOLAR', 'ICARUS', 'DAEDALUS',
+  'HEPHAESTUS', 'PROMETHEUS', 'ATLAS'
+];
+
+const TOPICS = ['OIC', 'ERP', 'Personal', 'General', 'Diet & Fitness'];
 
 type SidebarProps = {
-  activeTopic: string | null;
-  onTopicChange?: (topic: string) => void;
+  activeItem: string | null;
+  viewMode: 'agent' | 'topic';
+  onItemChange: (item: string) => void;
+  onViewModeChange: (mode: 'agent' | 'topic') => void;
 };
 
-export default function Sidebar({ activeTopic, onTopicChange }: SidebarProps) {
+export default function Sidebar({ activeItem, viewMode, onItemChange, onViewModeChange }: SidebarProps) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
@@ -39,6 +46,11 @@ export default function Sidebar({ activeTopic, onTopicChange }: SidebarProps) {
   }, []);
 
   const isActionsActive = pathname === '/actions';
+  const isProjectsActive = pathname === '/projects';
+  const isArchiveActive = pathname === '/archive';
+  const isLinksActive = pathname === '/links';
+
+  const items = viewMode === 'agent' ? AGENTS : TOPICS;
 
   return (
     <>
@@ -50,7 +62,7 @@ export default function Sidebar({ activeTopic, onTopicChange }: SidebarProps) {
         />
       )}
 
-      {/* Mobile hamburger — exposed outside sidebar */}
+      {/* Mobile hamburger */}
       <button
         onClick={() => setSidebarOpen(true)}
         className="fixed top-3 left-3 z-40 lg:hidden text-zinc-400 hover:text-zinc-100 p-1"
@@ -71,45 +83,76 @@ export default function Sidebar({ activeTopic, onTopicChange }: SidebarProps) {
           <p className="text-zinc-500 text-xs mt-1 font-mono">Intelligence Dashboard</p>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
-          {TOPICS.map(topic => (
-            onTopicChange ? (
-              <button
-                key={topic}
-                onClick={() => { onTopicChange(topic); setSidebarOpen(false); }}
-                className={`w-full text-left px-3 py-2.5 rounded-lg font-mono text-sm transition-colors
-                  ${activeTopic === topic
-                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                    : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50'
-                  }`}
-              >
-                {topic}
-              </button>
-            ) : (
-              <Link
-                key={topic}
-                href={`/?topic=${topic}`}
-                className={`w-full text-left px-3 py-2.5 rounded-lg font-mono text-sm transition-colors block
-                  ${activeTopic === topic
-                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                    : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50'
-                  }`}
-                onClick={() => setSidebarOpen(false)}
-              >
-                {topic}
-              </Link>
-            )
+        {/* View mode toggle */}
+        <div className="px-4 pt-4 pb-2">
+          <div className="flex items-center bg-zinc-900 rounded-lg p-1 border border-zinc-800">
+            <button
+              onClick={() => onViewModeChange('agent')}
+              className={`flex-1 text-xs font-mono py-1.5 rounded-md transition-colors ${
+                viewMode === 'agent'
+                  ? 'bg-amber-500/20 text-amber-400'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+            >
+              Agent View
+            </button>
+            <button
+              onClick={() => onViewModeChange('topic')}
+              className={`flex-1 text-xs font-mono py-1.5 rounded-md transition-colors ${
+                viewMode === 'topic'
+                  ? 'bg-amber-500/20 text-amber-400'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+            >
+              Topic View
+            </button>
+          </div>
+        </div>
+
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          {/* All Feed option */}
+          <Link
+            href="/"
+            onClick={() => setSidebarOpen(false)}
+            className={`w-full text-left px-3 py-2.5 rounded-lg font-mono text-sm transition-colors block ${
+              pathname === '/' && !activeItem
+                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50'
+            }`}
+          >
+            {viewMode === 'agent' ? '📋 All Feed' : '📋 All Topics'}
+          </Link>
+
+          {/* Items list */}
+          {items.map(item => (
+            <button
+              key={item}
+              onClick={() => { onItemChange(item); setSidebarOpen(false); }}
+              className={`w-full text-left px-3 py-2.5 rounded-lg font-mono text-sm transition-colors ${
+                activeItem === item
+                  ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                  : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50'
+              }`}
+            >
+              {viewMode === 'agent' && (
+                <span
+                  className="inline-block w-2 h-2 rounded-full mr-2"
+                  style={{ backgroundColor: getAgentColor(item) }}
+                />
+              )}
+              {item}
+            </button>
           ))}
 
           <div className="pt-2 border-t border-zinc-800 mt-4 space-y-1">
             <Link
               href="/actions"
               onClick={() => setSidebarOpen(false)}
-              className={`w-full text-left px-3 py-2.5 rounded-lg font-mono text-sm transition-colors flex items-center gap-2
-                ${isActionsActive
+              className={`w-full text-left px-3 py-2.5 rounded-lg font-mono text-sm transition-colors flex items-center gap-2 ${
+                isActionsActive
                   ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                   : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50'
-                }`}
+              }`}
             >
               <span>⚡ Actions</span>
               {pendingCount > 0 && (
@@ -120,21 +163,37 @@ export default function Sidebar({ activeTopic, onTopicChange }: SidebarProps) {
             </Link>
 
             <Link
-              href="/archive"
+              href="/projects"
               onClick={() => setSidebarOpen(false)}
-              className={`w-full text-left px-3 py-2.5 rounded-lg font-mono text-sm transition-colors flex items-center gap-2
-                ${pathname === '/archive'
+              className={`w-full text-left px-3 py-2.5 rounded-lg font-mono text-sm transition-colors flex items-center gap-2 ${
+                isProjectsActive
                   ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                   : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50'
-                }`}
+              }`}
             >
-              📁 Archive
+              📁 Projects
+            </Link>
+
+            <Link
+              href="/archive"
+              onClick={() => setSidebarOpen(false)}
+              className={`w-full text-left px-3 py-2.5 rounded-lg font-mono text-sm transition-colors flex items-center gap-2 ${
+                isArchiveActive
+                  ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                  : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50'
+              }`}
+            >
+              🗄️ Archive
             </Link>
 
             <Link
               href="/links"
               onClick={() => setSidebarOpen(false)}
-              className="w-full text-left px-3 py-2.5 rounded-lg font-mono text-sm text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50 transition-colors flex items-center gap-2 block"
+              className={`w-full text-left px-3 py-2.5 rounded-lg font-mono text-sm transition-colors flex items-center gap-2 ${
+                isLinksActive
+                  ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                  : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50'
+              }`}
             >
               🔗 Links
             </Link>
@@ -142,9 +201,24 @@ export default function Sidebar({ activeTopic, onTopicChange }: SidebarProps) {
         </nav>
 
         <div className="p-4 border-t border-zinc-800">
-          <p className="text-zinc-600 text-xs font-mono">v1.1.0</p>
+          <p className="text-zinc-600 text-xs font-mono">v2.0.0</p>
         </div>
       </aside>
     </>
   );
+}
+
+function getAgentColor(agent: string): string {
+  const colors: Record<string, string> = {
+    ARIA: '#8B5CF6',
+    GHOST: '#10B981',
+    SCHOLAR: '#3B82F6',
+    ICARUS: '#F59E0B',
+    DAEDALUS: '#06B6D4',
+    HEPHAESTUS: '#EF4444',
+    PROMETHEUS: '#F97316',
+    ATLAS: '#84CC16',
+    SYSTEM: '#6B7280',
+  };
+  return colors[agent] || colors.SYSTEM;
 }
