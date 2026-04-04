@@ -10,6 +10,10 @@ export async function GET() {
     await sql`ALTER TABLE threads ADD COLUMN IF NOT EXISTS action_required BOOLEAN DEFAULT false`;
     await sql`ALTER TABLE threads ADD COLUMN IF NOT EXISTS digest_id TEXT`;
     await sql`ALTER TABLE threads ADD COLUMN IF NOT EXISTS topic_tag TEXT`;
+    await sql`ALTER TABLE actions ADD COLUMN IF NOT EXISTS decision TEXT DEFAULT 'PENDING'`;
+    await sql`ALTER TABLE actions ADD COLUMN IF NOT EXISTS reason TEXT`;
+    await sql`ALTER TABLE actions ADD COLUMN IF NOT EXISTS decided_at TIMESTAMP`;
+    await sql`ALTER TABLE actions ADD COLUMN IF NOT EXISTS notified_at TIMESTAMP`;
     return NextResponse.json({ ok: true, message: 'Migration complete' });
   } catch (error) {
     return NextResponse.json({ ok: false, error: String(error) }, { status: 500 });

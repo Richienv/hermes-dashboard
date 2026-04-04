@@ -15,6 +15,13 @@ type PendingAction = {
   thread_topic: string;
 };
 
+type ModalState = {
+  open: boolean;
+  actionId: string;
+  decision: 'APPROVED' | 'REJECTED';
+  actionDescription: string;
+} | null;
+
 const TOPIC_FILTERS = ['All', 'OIC', 'ERP', 'Personal', 'General'];
 
 const TOPIC_COLORS: Record<string, string> = {
@@ -44,6 +51,9 @@ export default function ActionsPage() {
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('All');
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [modal, setModal] = useState<ModalState>(null);
+  const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const fetchActions = useCallback(async () => {
     try {
@@ -66,28 +76,42 @@ export default function ActionsPage() {
     return () => clearInterval(interval);
   }, [fetchActions]);
 
-  const handleAction = async (actionId: string, status: 'approved' | 'rejected') => {
-    // Optimistic update
-    setActionStates(prev => ({ ...prev, [actionId]: status }));
-
+  const handleConfirm = async () => {
+    if (!modal) return;
+    if (modal.decision === 'REJECTED' && !reason.trim()) {
+      alert('Reason is required for rejection.');
+      return;
+    }
+    setSubmitting(true);
     try {
-      const res = await fetch(`/api/action/${actionId}`, {
-        method: 'PATCH',
+      const res = await fetch('/api/action/respond', {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-Hermes-Key': process.env.NEXT_PUBLIC_HERMES_API_KEY || '',
         },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({
+          actionId: modal.actionId,
+          decision: modal.decision,
+          reason: reason.trim() || undefined,
+        }),
       });
-
-      if (!res.ok) {
-        setActionStates(prev => ({ ...prev, [actionId]: 'pending' }));
-        alert('Failed to update action');
-      } else {
+      if (res.ok) {
+        setActionStates(prev => ({
+          ...prev,
+          [modal.actionId]: modal.decision === 'APPROVED' ? 'approved' : 'rejected',
+        }));
+        setModal(null);
+        setReason('');
         setTimeout(fetchActions, 1000);
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Failed');
       }
     } catch {
-      setActionStates(prev => ({ ...prev, [actionId]: 'pending' }));
+      alert('Network error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -193,13 +217,23 @@ export default function ActionsPage() {
                     {currentStatus === 'pending' && (
                       <div className="flex gap-2 shrink-0 self-center mt-1 md:mt-0">
                         <button
-                          onClick={() => handleAction(action.id, 'approved')}
+                          onClick={() => setModal({
+                            open: true,
+                            actionId: action.id,
+                            decision: 'APPROVED',
+                            actionDescription: action.description,
+                          })}
                           className="text-xs font-mono px-3 py-1.5 rounded bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20 transition-colors"
                         >
                           ✅ Approve
                         </button>
                         <button
-                          onClick={() => handleAction(action.id, 'rejected')}
+                          onClick={() => setModal({
+                            open: true,
+                            actionId: action.id,
+                            decision: 'REJECTED',
+                            actionDescription: action.description,
+                          })}
                           className="text-xs font-mono px-3 py-1.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors"
                         >
                           ❌ Reject
@@ -213,6 +247,72 @@ export default function ActionsPage() {
           )}
         </main>
       </div>
+
+      {/* Reason modal */}
+      {modal && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-xl w-full max-w-md shadow-2xl">
+            {/* Header */}
+            <div className={`px-5 py-4 border-b border-zinc-800 rounded-t-xl ${
+              modal.decision === 'APPROVED' ? 'bg-green-500/10' : 'bg-red-500/10'
+            }`}>
+              <h3 className={`font-mono font-bold text-sm ${
+                modal.decision === 'APPROVED' ? 'text-green-400' : 'text-red-400'
+              }`}>
+                {modal.decision === 'APPROVED' ? '✅ APPROVE' : '❌ REJECT'}
+              </h3>
+              <p className="font-mono text-zinc-300 text-xs mt-1 line-clamp-2">
+                {modal.actionDescription}
+              </p>
+            </div>
+
+            {/* Body */}
+            <div className="px-5 py-4 space-y-3">
+              <label className="block">
+                <span className="font-mono text-zinc-400 text-xs">
+                  {modal.decision === 'APPROVED'
+                    ? 'Guidance for Hermes (optional):'
+                    : 'Reason for rejection (required):'}
+                </span>
+                <textarea
+                  autoFocus
+                  value={reason}
+                  onChange={e => setReason(e.target.value)}
+                  placeholder={
+                    modal.decision === 'APPROVED'
+                      ? 'e.g. "Proceed but use TypeScript strict mode, skip Prisma seed"'
+                      : 'e.g. "Not the right time, revisit next sprint"'
+                  }
+                  className="mt-1.5 w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 font-mono text-sm text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/50 resize-none"
+                  rows={3}
+                />
+              </label>
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-4 border-t border-zinc-800 flex gap-3 justify-end">
+              <button
+                onClick={() => { setModal(null); setReason(''); }}
+                disabled={submitting}
+                className="font-mono text-sm px-4 py-2 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirm}
+                disabled={submitting}
+                className={`font-mono text-sm px-4 py-2 rounded-lg font-semibold transition-colors disabled:opacity-50 ${
+                  modal.decision === 'APPROVED'
+                    ? 'bg-green-500/20 text-green-400 border border-green-500/30 hover:bg-green-500/30'
+                    : 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30'
+                }`}
+              >
+                {submitting ? 'Sending...' : modal.decision === 'APPROVED' ? 'Confirm Approve →' : 'Confirm Reject →'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
