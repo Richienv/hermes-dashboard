@@ -16,8 +16,8 @@ export async function PATCH(
 
   try {
     const { status } = await req.json();
-    if (!['approved', 'rejected'].includes(status)) {
-      return NextResponse.json({ error: 'status must be approved or rejected' }, { status: 400 });
+    if (!['approved', 'rejected', 'completed'].includes(status)) {
+      return NextResponse.json({ error: 'status must be approved, rejected, or completed' }, { status: 400 });
     }
 
     await sql`
