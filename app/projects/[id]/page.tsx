@@ -26,6 +26,7 @@ type Action = {
   detail: string | null;
   status: string;
   created_at: string;
+  attachments_count?: number;
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -296,7 +297,18 @@ export default function ProjectDetailPage() {
                         {new Date(action.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </span>
                     </div>
-                    <p className="text-sm font-mono text-zinc-200">{action.title}</p>
+                    {action.action_type === 'MILESTONE' ? (
+                      <a href={`/assignments/${action.id}`} className="text-sm font-mono text-blue-300 hover:text-blue-200 underline underline-offset-2">
+                        {action.title}
+                      </a>
+                    ) : (
+                      <p className="text-sm font-mono text-zinc-200">{action.title}</p>
+                    )}
+                    {(action.attachments_count || 0) > 0 && (
+                      <p className="text-xs font-mono text-green-400 mt-1">
+                        {action.attachments_count} attachment(s) • preview available
+                      </p>
+                    )}
                     {action.detail && (
                       <div className="mt-2">
                         <button

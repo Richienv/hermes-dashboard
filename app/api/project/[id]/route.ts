@@ -19,10 +19,21 @@ export async function GET(
     }
 
     const actionsResult = await sql`
-      SELECT id, project_id, agent, action_type, title, detail, status, created_at
-      FROM project_actions
-      WHERE project_id = ${id}
-      ORDER BY created_at DESC
+      SELECT
+        pa.id,
+        pa.project_id,
+        pa.agent,
+        pa.action_type,
+        pa.title,
+        pa.detail,
+        pa.status,
+        pa.created_at,
+        COALESCE(COUNT(aa.id), 0)::int AS attachments_count
+      FROM project_actions pa
+      LEFT JOIN assignment_attachments aa ON aa.assignment_id = pa.id
+      WHERE pa.project_id = ${id}
+      GROUP BY pa.id, pa.project_id, pa.agent, pa.action_type, pa.title, pa.detail, pa.status, pa.created_at
+      ORDER BY pa.created_at DESC
     `;
 
     return NextResponse.json({

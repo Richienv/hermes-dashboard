@@ -58,6 +58,18 @@ export async function GET() {
       )
     `;
 
+    await sql`
+      CREATE TABLE IF NOT EXISTS assignment_attachments (
+        id TEXT PRIMARY KEY,
+        assignment_id TEXT NOT NULL,
+        filename TEXT NOT NULL,
+        mime_type TEXT NOT NULL,
+        file_size INTEGER NOT NULL,
+        file_data BYTEA NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
+
     // Seed projects
     await sql`
       INSERT INTO projects (id, name, status, completion, assigned_agents, next_action, end_goal, success_criteria, deadline)
